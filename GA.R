@@ -426,3 +426,4 @@ for (model_type in c("rpart", "rf", "glm")) {
     }
   }
 }
+stopCluster(cl)
