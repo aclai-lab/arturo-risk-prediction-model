@@ -134,7 +134,7 @@ random_forward_selection_bl <- function(dataset, balance = "under") {
         }
         
         for (threshold in thresholds) {
-          metrics <- calculate_metrics(threshold, results$predicted_prob, results$observations)
+          metrics <- calculate_metrics(threshold, predictions, test_data$euro_d)
           thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold * 100, t(metrics)))
         }
       }
@@ -275,7 +275,7 @@ random_forward_selection <- function(dataset) {
         }
         
         for (threshold in thresholds) {
-          metrics <- calculate_metrics(threshold, results$predicted_prob, results$observations)
+          metrics <- calculate_metrics(threshold, predictions, test_data$euro_d)
           thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold * 100, t(metrics)))
         }
       }

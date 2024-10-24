@@ -141,6 +141,7 @@ genetic_feature_selection <- function(dataset, model_types = c("rpart", "rf", "g
                      keepBest = TRUE)
       
       best_solution <- ga_model@solution[1, ]
+      res <- fitness_function(best_solution, dataset, train_index, test_index, model_type, fold_idx)
       accuracy <- res$accuracy
       sensitivity <- res$sensitivity
       specificity <- res$specificity
@@ -407,6 +408,11 @@ genetic_feature_selection_bl <- function(dataset, model_types = c("rpart", "rf",
                        keepBest = TRUE)
         
         best_solution <- ga_model@solution[1, ]
+        selected_features <- all_features[which(best_solution == 1)]
+        if(balance == "over")
+          res <- fitness_function_bl_over(best_solution, dataset, train_index, test_index, model_type, fold_idx)
+        else
+          res <- fitness_function_bl_under(best_solution, dataset, train_index, test_index, model_type, fold_idx)
         accuracy <- res$accuracy
         sensitivity <- res$sensitivity
         specificity <- res$specificity
@@ -464,6 +470,7 @@ genetic_feature_selection_bl <- function(dataset, model_types = c("rpart", "rf",
     all_predictions = all_predictions
   ))
 }
+
 
 score_fitness_function <- function(selected_features, dataset, train_index, test_index, model_type, fold_idx) {
   
@@ -524,6 +531,8 @@ score_genetic_feature_selection <- function(dataset, model_types = c("rpart", "r
                      keepBest = TRUE)
       
       best_solution <- ga_model@solution[1, ]
+      selected_features <- all_features[which(best_solution == 1)]
+      res <- score_fitness_function(best_solution, dataset, train_index, test_index, model_type, fold_idx)
       MSE <- res$MSE
       MAE <- res$MAE
       R2 <- res$R2
@@ -568,28 +577,4 @@ score_genetic_feature_selection <- function(dataset, model_types = c("rpart", "r
     ga_summaries = ga_summaries,
     all_pred_ga = all_predictions
   ))
-}
-
-score_fitness_function <- function(selected_features, dataset, train_index, test_index, model_type, fold_idx) {
-  
-  selected_features <- as.logical(selected_features)
-  if(sum(selected_features) == 0) 
-    return(list(MSE = Inf, MAE = NA, R2 = NA, selected_features = selected_features))
-  
-  features <- names(dataset)[selected_features]
-  current_data <- dataset[, c(features, 'euro_d')]
-  train_data <- current_data[train_index, ]
-  test_data <- current_data[test_index, ]
-  
-  model <- score_train_model(model_type, train_data) # Modifica per includere modelli di regressione
-  predictions <- score_make_predictions(model, test_data, model_type)
-  
-  # Calcolo delle metriche per la regressione
-  observed_values <- test_data$euro_d
-  MSE <- mean((predictions - observed_values)^2)
-  MAE <- mean(abs(predictions - observed_values))
-  R2 <- 1 - sum((predictions - observed_values)^2) / sum((observed_values - mean(observed_values))^2)
-  
-  return(list(MSE = MSE, MAE = MAE, R2 = R2, selected_features = selected_features, 
-              true_label = observed_values, predicted_values = predictions))
 }

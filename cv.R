@@ -77,7 +77,7 @@ cv <- function(dataset,model_types = c("rpart", "rf", "glm"), seed = 123, k_fold
       results <- append(results, list(data.frame(Model = model_type, Fold = fold_idx, Indicator = "NPV", Value = NPV)))
       
       for (threshold in thresholds) {
-        metrics <- calculate_metrics(threshold, results$predicted_prob, results$observations)
+        metrics <- calculate_metrics(threshold, predictions, test_data$euro_d)
         thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold * 100, t(metrics)))
       }
     }
@@ -164,7 +164,7 @@ double_cv <- function(dataset, model_types = c("rpart", "rf", "glm"), seed = 123
         results <- append(results, list(data.frame(Model = model_type, Fold = fold_idx, Indicator = "NPV", Value = NPV)))
       
         for (threshold in thresholds) {
-          metrics <- calculate_metrics(threshold, results$predicted_prob, results$observations)
+          metrics <- calculate_metrics(threshold, predictions, test_data$euro_d)
           thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold * 100, t(metrics)))
         }
       }
@@ -210,7 +210,7 @@ double_cv <- function(dataset, model_types = c("rpart", "rf", "glm"), seed = 123
 # - The function returns the best MSE for each model, the complete results list, and all predictions.
 score_cross_validation <- function(dataset, model_types = c("rpart", "rf", "glm")) {
   
-  set.seed(1)
+  set.seed(123)
   best_overall_MSE <- list()
   results <- list()
   all_predictions <- data.frame()
@@ -236,9 +236,10 @@ score_cross_validation <- function(dataset, model_types = c("rpart", "rf", "glm"
       model <- score_train_model(model_type, train_data)
       
       predictions <- score_make_predictions(model, test_data, model_type)
-      valid_indices <- which(predictions <= 12)
-      predictions <- predictions[valid_indices]
-      observed_values <- test_data$euro_d[valid_indices]
+      #valid_indices <- which(predictions <= 12)
+      #predictions <- predictions[valid_indices]
+      #observed_values <- test_data$euro_d[valid_indices]
+      observed_values <- test_data$euro_d
       
       if(length(predictions)>0){
         MSE <- mean((predictions - observed_values)^2)

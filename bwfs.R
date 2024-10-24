@@ -129,7 +129,7 @@ random_backward_selection_bl <- function(dataset, target_var = "euro_d", N = 5, 
         }
         
         for (threshold in thresholds) {
-          metrics <- calculate_metrics(threshold, results$predicted_prob, results$observations)
+          metrics <- calculate_metrics(threshold, predictions, test_data$euro_d)
           thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold * 100, t(metrics)))
         }
       }
@@ -262,7 +262,7 @@ random_backward_selection <- function(dataset, target_var = "euro_d", N = 5, k =
           best_fold_features <- selected_features
         }
         for (threshold in thresholds) {
-          metrics <- calculate_metrics(threshold, results$predicted_prob, results$observations)
+          metrics <- calculate_metrics(threshold, predictions, test_data$euro_d)
           thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold * 100, t(metrics)))
         }
       }

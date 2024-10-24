@@ -1,5 +1,4 @@
-
-packages <- c(
+install.packages(c(
   "tidyverse",    # Collection of R packages for data science
   "magrittr",     # Provides the %>% pipe operator for chaining commands
   "here",         # Constructs paths to your project's files
@@ -24,16 +23,36 @@ packages <- c(
   "tidyr",        # Tools for changing the layout of your data sets
   "forcats",      # Tools for working with categorical data
   "RColorBrewer", # Provides color schemes for maps and other graphics
-  "pROC",          # Produces pROC and calibration curves
-  "rpart.plot",
-  "rattle"
-)
+  "pROC",         # Produces pROC and calibration curves
+  "rpart.plot",   # Plots rpart models in a more readable format
+  "rattle"        # Graphical user interface for data mining
+))
 
-install_if_missing <- function(p) {
-  if (!requireNamespace(p, quietly = TRUE)) {
-    install.packages(p, dependencies = TRUE)
-  }
-}
-invisible(sapply(packages, install_if_missing))
-lapply(packages, library, character.only = TRUE)
- write.csv(results_fwfs_bl_under$all_predictions, "predictions/balance/predictions_fwfs_bl_under.csv")
+library(tidyverse)   # Collection of R packages for data science
+library(magrittr)    # Provides the %>% pipe operator for chaining commands
+library(here)        # Constructs paths to your project's files
+library(haven)       # Imports and exports data from SPSS, Stata, and SAS files
+library(labelled)    # Works with labelled data
+library(ggplot2)     # Creates elegant data visualizations using the grammar of graphics
+library(gridExtra)   # Provides functions to arrange multiple grid-based figures on a page
+library(patchwork)   # Combines separate ggplot2 plots into the same graphic
+library(plotly)      # Creates interactive web-based graphics
+library(gt)          # Creates presentation-ready display tables
+library(ggalluvial)  # Implements alluvial plots for categorical data
+library(officer)     # Tools for working with Microsoft Word and PowerPoint documents
+library(flextable)   # Produces tabular reporting tables
+library(caret)       # Streamlines the process for creating predictive models
+library(rpart)       # Recursive partitioning for classification and regression trees
+library(randomForest) # Implements Breiman's random forest algorithm
+library(e1071)       # Functions for statistical learning and support vector machines
+library(parallel)    # Supports parallel computing
+library(doParallel)  # Parallel backend for the foreach package
+library(GA)          # Genetic algorithms for optimization
+library(nnet)        # Software for feed-forward neural networks
+library(tidyr)       # Tools for reshaping your data sets
+library(forcats)     # Tools for working with categorical data
+library(RColorBrewer) # Provides color schemes for maps and other graphics
+library(pROC)        # Produces pROC and calibration curves
+library(rpart.plot)  # Plots rpart models in a more readable format
+library(rattle)      # Graphical user interface for data mining
+library(tidyjson)
