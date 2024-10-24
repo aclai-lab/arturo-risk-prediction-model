@@ -1,78 +1,163 @@
+############################################################################
+# DATA FILTER & MANIPULATION ###############################################
+############################################################################
+
+############################################################################
+# euro_analysis ############################################################
+############################################################################
+#' Perform an analysis on 'euro' variables in the dataset
+#'
+#' This function filters the dataset to include only rows with specified IDs and then counts the number of rows 
+#' where more than one 'euro' variable has values of -1, -2, or is NA.
+#'
+#' @param data A data frame containing the dataset, which should include a column named 'mergeid' and several columns 
+#' starting with 'euro'.
+#' @param ids A vector of IDs to filter the dataset (`mergeid` values).
+#'
+#' @return An integer representing the number of rows that have more than one 'euro' variable with values -1, -2, or NA.
+#'
+#' @examples
+#' # Example usage:
+#' count <- euro_analysis(data, ids = c(1, 2, 3))
 euro_analysis <- function(data, ids) {
+  # Filter the dataset to include only rows with specified IDs
   filtered_data <- data %>%
     filter(mergeid %in% ids)
   
-  # Contare il numero di righe che hanno più di una variabile che inizia con "euro" con valori -1, -2 o NA
+  # Count rows with more than one 'euro' variable having values -1, -2, or NA
   count_rows <- filtered_data %>%
     rowwise() %>%
     mutate(euro_conditions = sum(across(starts_with("euro"), ~ .x %in% c(-1, -2) | is.na(.x)))) %>%
     ungroup() %>%
-    filter(euro_conditions > 1) %>%
-    nrow()
+    filter(euro_conditions > 1) %>%  # Keep rows where more than one 'euro' variable meets the condition
+    nrow()  # Count the number of such rows
   
-  return(count_rows)
+  return(count_rows)  # Return the count
 }
 
-score_process_wave <- function(data, ids) {
+############################################################################
+# old_score_process_wave ###################################################
+############################################################################
+#' Process 'euro' variables and calculate a summary score
+#'
+#' This function filters the dataset to include only rows with specified IDs and then calculates two new variables:
+#' the number of anomalous values (NA, -1, -2) and the count of values equal to 1 in columns starting with "euro".
+#' Based on these counts, it creates a new variable (`euro_d`) that summarizes the data using specific conditions.
+#'
+#' @param data A data frame containing the dataset, which should include a column named 'mergeid' and several columns 
+#' starting with 'euro'.
+#' @param ids A vector of IDs to filter the dataset (`mergeid` values).
+#'
+#' @return A data frame with columns `mergeid` and `euro_d`, where `euro_d` is calculated based on the conditions.
+#'
+#' @examples
+#' # Example usage:
+#' processed_data <- old_score_process_wave(data, ids = c(1, 2, 3))
+old_score_process_wave <- function(data, ids) {
+  # Filter the dataset to include only rows with specified IDs
   filtered_data <- data %>%
     filter(mergeid %in% ids) %>%
     rowwise() %>%
+    # Calculate the number of anomalous values and count of ones in 'euro' variables
     mutate(
-      # Contare il numero di valori anomali (NA, -1, -2) per riga
       num_anomalous_values = sum(across(starts_with("euro"), ~ .x %in% c(NA, -1, -2))),
-      # Contare il numero di valori 1 per riga
       num_ones = sum(across(starts_with("euro"), ~ .x == 1))
     ) %>%
     ungroup()
   
+  # Create 'euro_d' based on conditions involving 'num_ones' and 'num_anomalous_values'
   filtered_data <- filtered_data %>%
     select(mergeid, starts_with("euro"), num_anomalous_values, num_ones) %>%
     mutate(
       euro_d = case_when(
-        num_ones >= 4 & num_anomalous_values < 4 ~ num_ones,
-        num_ones < 4 & num_anomalous_values < 4 ~ num_ones,
-        TRUE ~ NA
-      ),
+        num_ones >= 4 & num_anomalous_values < 4 ~ num_ones,  # If there are 4 or more ones and fewer than 4 anomalous values
+        num_ones < 4 & num_anomalous_values < 4 ~ num_ones,   # If there are fewer than 4 ones and fewer than 4 anomalous values
+        TRUE ~ NA  # Set to NA in all other cases
+      )
     )
   
+  # Select only 'mergeid' and 'euro_d' columns for the final output
   filtered_data <- filtered_data %>%
     select(mergeid, euro_d)
   
-  return(filtered_data)
-  
+  return(filtered_data)  # Return the processed data frame
 }
 
+
+############################################################################
+# old_process_wave #########################################################
+############################################################################
+#' Process 'euro' variables and create a depression label
+#'
+#' This function filters the dataset to include only rows with specified IDs and then calculates two new variables:
+#' the number of anomalous values (NA, -1, -2) and the count of values equal to 1 in columns starting with "euro".
+#' Based on these counts, it creates a new labeled variable (`euro_d`) that indicates whether the row is classified 
+#' as "depressed" or "not depressed".
+#'
+#' @param data A data frame containing the dataset, which should include a column named 'mergeid' and several columns 
+#' starting with 'euro'.
+#' @param ids A vector of IDs to filter the dataset (`mergeid` values).
+#'
+#' @return A data frame with columns `mergeid` and `euro_d`, where `euro_d` is a labeled factor indicating "depressed" 
+#' or "not depressed".
+#'
+#' @examples
+#' # Example usage:
+#' processed_data <- old_process_wave(data, ids = c(1, 2, 3))
 old_process_wave <- function(data, ids) {
+  # Filter the dataset to include only rows with specified IDs
   filtered_data <- data %>%
     filter(mergeid %in% ids) %>%
     rowwise() %>%
+    # Calculate the number of anomalous values and count of ones in 'euro' variables
     mutate(
-      # Contare il numero di valori anomali (NA, -1, -2) per riga
-      num_anomalous_values = sum(across(starts_with("euro"), ~ .x %in% c(NA, -1, -2))),
-      # Contare il numero di valori 1 per riga
-      num_ones = sum(across(starts_with("euro"), ~ .x == 1))
+      num_anomalous_values = sum(across(starts_with("euro"), ~ .x %in% c(NA, -1, -2))),  # Count anomalous values
+      num_ones = sum(across(starts_with("euro"), ~ .x == 1))  # Count values equal to 1
     ) %>%
     ungroup()
   
-  
+  # Create 'euro_d' based on conditions and label it
   filtered_data <- filtered_data %>%
     select(mergeid, starts_with("euro"), num_anomalous_values, num_ones) %>%
     mutate(
       euro_d = case_when(
-        num_ones >= 4 & num_anomalous_values < 4 ~ "yes",
-        num_ones < 4 & num_anomalous_values < 4 ~ "no",
-        TRUE ~ NA_character_
+        num_ones >= 4 & num_anomalous_values < 4 ~ "yes",  # Set to "yes" if conditions are met
+        num_ones < 4 & num_anomalous_values < 4 ~ "no",    # Set to "no" if conditions are met
+        TRUE ~ NA_character_  # Set to NA in all other cases
       ),
+      # Label 'euro_d' as a factor with levels "depressed" and "not depressed"
       euro_d = labelled(euro_d, labels = c("depressed" = "yes", "not depressed" = "no"), label = "depression")
     )
   
+  # Select only 'mergeid' and 'euro_d' columns for the final output
   filtered_data <- filtered_data %>%
     select(mergeid, euro_d)
   
-  
-  return(filtered_data)
+  return(filtered_data)  # Return the processed data frame
 }
 
+
+
+############################################################################
+# old_combine_wave_dataset #################################################
+############################################################################
+#' Combine and process datasets across multiple waves
+#'
+#' This function combines and processes data from different waves, applying filters, merging data, and selecting patients
+#' based on various conditions, such as those diagnosed with cancer. The function can handle data filtering, scoring, 
+#' and specific wave-to-wave processing to prepare a final combined dataset for analysis.
+#'
+#' @param only_onco Logical, whether to include only cancer patients in the analysis (default: TRUE).
+#' @param only_onco_fu Logical, whether to include only cancer patients who were followed up in the analysis (default: TRUE).
+#' @param score Logical, whether to use scoring with the `old_score_process_wave` function (default: TRUE).
+#' @param filters A list of column filters for various datasets, used to select specific columns in each dataset.
+#' @param data_names A character vector specifying the dataset names to be included in the analysis.
+#'
+#' @return A combined data frame containing processed data from the specified waves, filtered, scored, and labeled as needed.
+#'
+#' @examples
+#' # Example usage:
+#' combined_data <- old_combine_wave_dataset()
 old_combine_wave_dataset <- function(  
     only_onco = TRUE,
     only_onco_fu = TRUE,
@@ -185,15 +270,15 @@ old_combine_wave_dataset <- function(
   
   data_wave_5 <- waves$wave5 %>%
     filter(mergeid %in% ids_wave_5_6)
-  euro_sum_wave_6 <- if(score == TRUE) score_process_wave(waves$wave6, ids_wave_5_6) else process_wave(waves$wave6, ids_wave_5_6)
+  euro_sum_wave_6 <- if(score == TRUE) old_score_process_wave(waves$wave6, ids_wave_5_6) else process_wave(waves$wave6, ids_wave_5_6)
   
   data_wave_6 <- waves$wave6 %>%
     filter(mergeid %in% ids_wave_not5_6_7)
-  euro_sum_wave_7 <- if(score == TRUE) score_process_wave(waves$wave7, ids_wave_not5_6_7) else process_wave(waves$wave7, ids_wave_not5_6_7)
+  euro_sum_wave_7 <- if(score == TRUE) old_score_process_wave(waves$wave7, ids_wave_not5_6_7) else process_wave(waves$wave7, ids_wave_not5_6_7)
   
   data_wave_7 <- waves$wave7 %>%
     filter(mergeid %in% ids_wave_not5_not6_7_8)
-  euro_sum_wave_8 <- if(score == TRUE) score_process_wave(waves$wave8,  ids_wave_not5_not6_7_8) else process_wave(waves$wave8,  ids_wave_not5_not6_7_8)
+  euro_sum_wave_8 <- if(score == TRUE) old_score_process_wave(waves$wave8,  ids_wave_not5_not6_7_8) else process_wave(waves$wave8,  ids_wave_not5_not6_7_8)
   
   #data_wave_4_5 <- left_join(data_wave_4, euro_sum_wave_5, by = "mergeid")
   data_wave_5_6 <- left_join(data_wave_5, euro_sum_wave_6, by = "mergeid")
@@ -227,50 +312,150 @@ old_combine_wave_dataset <- function(
   return(combined_data)
 }
 
-process_wave <- function(data, ids, initial = FALSE) {
+############################################################################
+# score_process_wave #######################################################
+############################################################################
+#' Process 'euro' variables and calculate scores
+#'
+#' This function processes the dataset for specified IDs, calculates the number of anomalous values (NA, -1) 
+#' and the count of values equal to 1 for columns starting with "euro". It then creates a new variable (`euro_d` or `initial_euro_d`)
+#' based on these counts.
+#'
+#' @param data A data frame containing the dataset, which should include a column named 'mergeid' and several columns starting with "euro".
+#' @param ids A vector of IDs to filter the dataset (`mergeid` values).
+#' @param initial Logical, if TRUE, the function creates an `initial_euro_d` column for the initial wave. If FALSE, it creates `euro_d`.
+#'
+#' @return A data frame with columns `mergeid` and either `euro_d` or `initial_euro_d` based on the `initial` parameter.
+#'
+#' @examples
+#' # Example usage:
+#' processed_data <- score_process_wave(data, ids = c(1, 2, 3), initial = TRUE)
+score_process_wave <- function(data, ids, initial = FALSE) {
+  # Filter the dataset to include only rows with specified IDs
   filtered_data <- data %>%
     filter(mergeid %in% ids) %>%
     rowwise() %>%
+    # Calculate the number of anomalous values and count of ones in 'euro' variables
     mutate(
-      # Contare il numero di valori anomali (NA, -1, -2) per riga
-      num_anomalous_values = sum(across(starts_with("euro"), ~ .x %in% c(NA, -1, -2))),
-      # Contare il numero di valori 1 per riga
-      num_ones = sum(across(starts_with("euro"), ~ .x == 1))
+      num_anomalous_values = sum(across(starts_with("euro"), ~ .x %in% c(NA, -1, -2))),  # Count anomalous values
+      num_ones = sum(across(starts_with("euro"), ~ .x == 1))  # Count values equal to 1
     ) %>%
     ungroup()
   
+  # Create 'initial_euro_d' for the initial wave or 'euro_d' for other waves
   if (initial) {
     filtered_data <- filtered_data %>%
       mutate(
         initial_euro_d = case_when(
-          num_ones >= 4 & num_anomalous_values < 4 ~ "yes",
-          num_ones < 4 & num_anomalous_values < 4 ~ "no",
-          TRUE ~ NA_character_
-        ),
-        initial_euro_d = labelled(initial_euro_d, labels = c("depressed" = "yes", "not depressed" = "no"), label = "depression")
-      )
-    filtered_data <- filtered_data %>%
-      select(-num_anomalous_values, -num_ones)
-  }else {
+          num_ones >= 4 & num_anomalous_values < 4 ~ num_ones,  # Set initial_euro_d if conditions are met
+          num_ones < 4 & num_anomalous_values < 4 ~ num_ones,   # Set initial_euro_d if conditions are met
+          TRUE ~ NA  # Set to NA in all other cases
+        )
+      ) %>%
+      select(-num_anomalous_values, -num_ones)  # Remove auxiliary columns
+  } else {
     filtered_data <- filtered_data %>%
       select(mergeid, starts_with("euro"), num_anomalous_values, num_ones) %>%
       mutate(
         euro_d = case_when(
-          num_ones >= 4 & num_anomalous_values < 4 ~ "yes",
-          num_ones < 4 & num_anomalous_values < 4 ~ "no",
-          TRUE ~ NA_character_
-        ),
-        euro_d = labelled(euro_d, labels = c("depressed" = "yes", "not depressed" = "no"), label = "depression")
-      )
-    
-    filtered_data <- filtered_data %>%
-      select(mergeid, euro_d)
+          num_ones >= 4 & num_anomalous_values < 4 ~ num_ones,  # Set euro_d if conditions are met
+          num_ones < 4 & num_anomalous_values < 4 ~ num_ones,   # Set euro_d if conditions are met
+          TRUE ~ NA  # Set to NA in all other cases
+        )
+      ) %>%
+      select(mergeid, euro_d)  # Select relevant columns for the output
   }
   
-  return(filtered_data)
+  return(filtered_data)  # Return the processed data frame
 }
 
-load_dataset <- function(  
+
+############################################################################
+# process_wave #############################################################
+############################################################################
+#' Process 'euro' variables and assign depression labels
+#'
+#' This function processes the dataset for specified IDs, calculates the number of anomalous values (NA, -1, -2) 
+#' and the count of values equal to 1 in columns starting with "euro". Based on these counts, it creates a new labeled 
+#' variable (`euro_d` or `initial_euro_d`) to classify the entries as "depressed" or "not depressed".
+#'
+#' @param data A data frame containing the dataset, which should include a column named 'mergeid' and several columns 
+#' starting with "euro".
+#' @param ids A vector of IDs to filter the dataset (`mergeid` values).
+#' @param initial Logical, if TRUE, the function creates an `initial_euro_d` column for the initial wave. If FALSE, it creates `euro_d`.
+#'
+#' @return A data frame with columns `mergeid` and either `euro_d` or `initial_euro_d`, with labels indicating "depressed" 
+#' or "not depressed".
+#'
+#' @examples
+#' # Example usage:
+#' processed_data <- process_wave(data, ids = c(1, 2, 3), initial = TRUE)
+process_wave <- function(data, ids, initial = FALSE) {
+  # Filter the dataset to include only rows with specified IDs
+  filtered_data <- data %>%
+    filter(mergeid %in% ids) %>%
+    rowwise() %>%
+    # Calculate the number of anomalous values and count of ones in 'euro' variables
+    mutate(
+      num_anomalous_values = sum(across(starts_with("euro"), ~ .x %in% c(NA, -1, -2))),  # Count anomalous values
+      num_ones = sum(across(starts_with("euro"), ~ .x == 1))  # Count values equal to 1
+    ) %>%
+    ungroup()
+  
+  # Create 'initial_euro_d' for the initial wave or 'euro_d' for other waves
+  if (initial) {
+    filtered_data <- filtered_data %>%
+      mutate(
+        initial_euro_d = case_when(
+          num_ones >= 4 & num_anomalous_values < 4 ~ "yes",  # Set to "yes" if conditions are met
+          num_ones < 4 & num_anomalous_values < 4 ~ "no",    # Set to "no" if conditions are met
+          TRUE ~ NA_character_  # Set to NA in all other cases
+        ),
+        # Label 'initial_euro_d' as "depressed" or "not depressed"
+        initial_euro_d = labelled(initial_euro_d, labels = c("depressed" = "yes", "not depressed" = "no"), label = "depression"),
+        initial_euro_d <- labelled::set_variable_labels(dataset$initial_euro_d, label = "Depression at BaseLine")
+      ) %>%
+      select(-num_anomalous_values, -num_ones)  # Remove auxiliary columns
+  } else {
+    filtered_data <- filtered_data %>%
+      select(mergeid, starts_with("euro"), num_anomalous_values, num_ones) %>%
+      mutate(
+        euro_d = case_when(
+          num_ones >= 4 & num_anomalous_values < 4 ~ "yes",  # Set to "yes" if conditions are met
+          num_ones < 4 & num_anomalous_values < 4 ~ "no",    # Set to "no" if conditions are met
+          TRUE ~ NA_character_  # Set to NA in all other cases
+        ),
+        # Label 'euro_d' as "depressed" or "not depressed"
+        euro_d = labelled(euro_d, labels = c("depressed" = "yes", "not depressed" = "no"), label = "depression")
+      ) %>%
+      select(mergeid, euro_d)  # Select relevant columns for the output
+  }
+  
+  return(filtered_data)  # Return the processed data frame
+}
+
+
+############################################################################
+# combine_wave_dataset #####################################################
+############################################################################
+#' Combine and process datasets across multiple waves
+#'
+#' This function combines and processes data from different waves, applying filters, merging data, and selecting patients
+#' based on various conditions, such as those diagnosed with cancer. It can handle data filtering, scoring, and wave-to-wave 
+#' processing to prepare a final combined dataset for analysis.
+#'
+#' @param only_onco Logical, whether to include only cancer patients in the analysis (default: TRUE).
+#' @param only_onco_fu Logical, whether to include only cancer patients who were followed up in the analysis (default: TRUE).
+#' @param score Logical, whether to use scoring with the `score_process_wave` function (default: TRUE).
+#' @param filters A list of column filters for various datasets, used to select specific columns in each dataset.
+#' @param data_names A character vector specifying the dataset names to be included in the analysis.
+#'
+#' @return A combined data frame containing processed data from the specified waves, filtered, scored, and labeled as needed.
+#'
+#' @examples
+#' # Example usage:
+#' combined_data <- combine_wave_dataset()
+combine_wave_dataset <- function(  
     only_onco = TRUE,
     only_onco_fu = TRUE,
     score = TRUE,
@@ -335,6 +520,10 @@ load_dataset <- function(
     combined_wave <- reduce(waves_ds, full_join, by = "mergeid")
     combined_wave <- combined_wave %>% mutate(wave = wave)
     
+    #ph006d10:Cancer: ever diagnosed/currently havin == 1
+    #ph071_3: How often diagnosed with cancer since last interview > 0
+    #ph072_3: Been diagnosed with cancer since last interview == 1
+    
     cancer_filter <- combined_wave %>% filter(ph006d10 == 1 | ph071_3 > 0 | ph072_3 == 1)
     cancer_ids <- cancer_filter %>% pull(mergeid)
     
@@ -376,8 +565,6 @@ load_dataset <- function(
     ids_wave_not5_6_7 <- setdiff(intersect(w6_id_cancer, waves$wave7$mergeid),  ids_wave_5_6)
     ids_wave_not5_not6_7_8 <- setdiff(intersect(w7_id_cancer, waves$wave8$mergeid), union(ids_wave_5_6, ids_wave_not5_6_7))
   }
-  
-  
   
   #data_wave_4 <- process_wave(waves$wave4, ids_wave_4_5, initial = TRUE)
   #euro_sum_wave_5 <- process_wave(waves$wave6, ids_wave_4_5, sum_only = TRUE)
@@ -424,6 +611,24 @@ load_dataset <- function(
   return(combined_data)
 }
 
+
+############################################################################
+# load_death_dataset #######################################################
+############################################################################
+#' Load and process cancer patient data across waves with death information
+#'
+#' This function reads datasets from waves 4 to 8, filters the data based on specified columns, and identifies cancer patients.
+#' It then checks for deaths in follow-up waves and creates labels indicating the patient's status (alive, dead, or missing)
+#' in the next wave. The resulting dataset includes a combined data frame with all the processed information.
+#'
+#' @param filters A list of column filters for various datasets, used to select specific columns in each dataset.
+#' @param data_names A character vector specifying the dataset names to be included in the analysis.
+#'
+#' @return A combined data frame containing processed data from waves 5 to 7 with cancer patient status (alive, death, missing) in follow-up waves.
+#'
+#' @examples
+#' # Example usage:
+#' combined_data <- load_death_dataset()
 load_death_dataset <- function(  
     filters = list(
       cv_r_filter = c("age_int", "hhsize"),
@@ -586,9 +791,21 @@ load_death_dataset <- function(
   return(combined_data)
 }
 
+############################################################################
+# filtering_dataset ########################################################
+############################################################################
+# Function to filter and preprocess the dataset
+# This function performs several preprocessing steps on the input dataset, such as replacing specific values, recoding variables, adding new variables, and adjusting variable domains.
+# Arguments:
+# - combined_dataset: The input dataset containing the variables to process.
+# - var_euro: A vector of variable names related to depression (defaults to a predefined set).
+# - score: A logical flag to determine whether to label the initial depression variable.
+# Returns:
+# - The modified dataset after applying the filtering and preprocessing steps.
 filtering_dataset <- function(
     combined_dataset,
-    var_euro = c("euro1", "euro2", "euro3", "euro4", "euro5", "euro6", "euro7", "euro8", "euro9", "euro10", "euro11", "euro12")
+    var_euro = c("euro1", "euro2", "euro3", "euro4", "euro5", "euro6", "euro7", "euro8", "euro9", "euro10", "euro11", "euro12"),
+    score = FALSE
     ){
   
   # Negative value to NA
@@ -601,12 +818,14 @@ filtering_dataset <- function(
            across(where(is.double), ~if_else(is.na(.), as.double(-1), .)),
            across(where(is.character), ~if_else(is.na(.), "-1", .)))
   
-  combined_dataset <- combined_dataset %>%
-    mutate(initial_euro_d = labelled(initial_euro_d, labels = c(
-                    "missing" = -1,
-                    "depressed" = "yes",
-                    "not depressed" = "no"
-                  )))
+  if(score == FALSE){
+    combined_dataset <- combined_dataset %>%
+      mutate(initial_euro_d = labelled(initial_euro_d, labels = c(
+        "missing" = -1,
+        "depressed" = "yes",
+        "not depressed" = "no"
+      )))
+  }
   
   # Find variable domain without 'mergeid' and 'wave'
   domains <- sapply(combined_dataset[setdiff(names(combined_dataset), c("mergeid", "wave"))], get_domain)
@@ -756,6 +975,18 @@ var_label(combined_dataset$bmi) <- "bmi"
   return(combined_dataset)
 }
 
+############################################################################
+# categorization_variable ##################################################
+############################################################################
+# Function to categorize variables based on specific conditions
+# This function processes multiple variables in the dataset, creating new categorized variables based on their respective conditions.
+# It handles variables that might have multiple categories, recodes values, and adds appropriate labels.
+# Arguments:
+# - dataset: The input dataset to be processed.
+# - variables: A vector of variable prefixes to be categorized.
+# Returns:
+# - The modified dataset with newly created categorized variables.
+
 categorization_variable <- function(dataset, variables){
   for (var in variables){
     
@@ -879,6 +1110,20 @@ categorization_variable <- function(dataset, variables){
   return(dataset)
 }
 
+############################################################################
+# cleaning_dataset #########################################################
+############################################################################
+# Function to clean and process the dataset
+# This function categorizes specified variables, updates labels, and removes unwanted variables.
+# It also filters secondary variables based on the provided prefixes and applies label cleaning.
+# Arguments:
+# - dataset: The input dataset to be cleaned and processed.
+# - protected_var: A variable to be protected during cleaning (currently not used in the function).
+# - to_be_categ: A vector of variable prefixes to be categorized.
+# - secondary_var: A vector of variable prefixes to be identified and included for removal.
+# - to_be_remove: A vector of specific variables and secondary variables to be removed from the dataset.
+# Returns:
+# - The cleaned and processed dataset.
 cleaning_dataset <- function(
     dataset,
     protected_var,
@@ -911,6 +1156,17 @@ cleaning_dataset <- function(
   return(dataset)
 }
 
+############################################################################
+# load_dataset #############################################################
+############################################################################
+# Function to load, filter, and clean the dataset
+# This function combines data from multiple waves, filters and cleans it according to specified parameters.
+# Arguments:
+# - only_onco: A boolean indicating whether to include only oncology patients (default is TRUE).
+# - only_onco_fu: A boolean indicating whether to include only oncology patients in follow-up (default is FALSE).
+# - score: A boolean indicating whether to perform scoring (default is FALSE).
+# Returns:
+# - The cleaned and processed dataset.
 load_dataset <- function(
     only_onco = TRUE, 
     only_onco_fu = FALSE, 
