@@ -141,6 +141,7 @@ genetic_feature_selection <- function(dataset, model_types = c("rpart", "rf", "g
                      keepBest = TRUE)
       
       best_solution <- ga_model@solution[1, ]
+      selected_features <- all_features[which(best_solution == 1)]
       res <- fitness_function(best_solution, dataset, train_index, test_index, model_type, fold_idx)
       accuracy <- res$accuracy
       sensitivity <- res$sensitivity
