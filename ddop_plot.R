@@ -1014,7 +1014,7 @@ plot_variable_distribution <- function(dataset, var_name, domain_mapping, condit
 #' # Example usage:
 #' create_descriptive_table_with_plots(dataset = data, domain_mapping = domain_map, output_file = "output.docx")
 #'
-create_descriptive_table_with_plots <- function(dataset, domain_mapping, output_file, dataset_death = NULL, column3 = "ALIVE", column4 = "DEATH", column5 = "MISSING") { 
+create_descriptive_table_with_plots <- function(dataset, domain_mapping, output_file, dataset_death = NULL, column3 = "INCLUDED", column4 = "DEATH", column5 = "LOST TO FOLLOW UP") { 
   temp_files <- list()  # List to store temporary files for the plots
   var_names <- setdiff(names(dataset), c("mergeid", "wave", "hhid6", "mergeidp6", "coupleid6", 
                                          "hhid5", "mergeidp5", "coupleid5", "hhid7", "mergeidp7", 
@@ -1184,148 +1184,9 @@ risk_table_docx <- function(thresholds_results, output_path = "", algo = "") {
   print(doc, target = output_path)
 }
 
-calibration_curve_docx <- function(predictions, plot_name = "calibration_curves.docx", table_par = "") {
-  
-  # Assicurati che i pacchetti necessari siano caricati
-  library(dplyr)
-  library(ggplot2)
-  library(officer)
-  library(scales)
-  
-  # Controlla che 'PredictedProb', 'TrueLabel' e 'Model' siano presenti
-  if (!all(c("PredictedProb", "TrueLabel", "Model") %in% names(predictions))) {
-    stop("Il dataframe delle previsioni deve contenere le colonne 'PredictedProb', 'TrueLabel' e 'Model'.")
-  }
-  
-  # Converti TrueLabel in fattore se non lo è già
-  predictions$TrueLabel <- as.factor(predictions$TrueLabel)
-  
-  # Estrai i tipi di modello unici
-  model_types <- unique(predictions$Model)
-  model_types <- c("dt", "rf", "glm")
-  # Lista per memorizzare i dati di calibrazione per ogni modello
-  calibration_data_list <- list()
-  
-  # Loop attraverso ogni tipo di modello per calcolare i dati di calibrazione
-  for (model_type in model_types) {
-    # Filtra le previsioni per il modello corrente
-    model_data <- filter(predictions, Model == model_type)
-    
-    # Assicurati che PredictedProb sia numerico
-    model_data$PredictedProb <- as.numeric(model_data$PredictedProb)
-    
-    # Calcola i dati di calibrazione usando il binning
-    bins <- 10  # Numero di bin (puoi modificarlo)
-    model_data <- model_data %>%
-      mutate(
-        bin = ntile(PredictedProb, bins)
-      ) %>%
-      group_by(bin) %>%
-      summarise(
-        mean_pred = mean(PredictedProb),
-        obs_rate = mean(as.numeric(TrueLabel) - 1)  # Converti 'yes'/'no' in 1/0 se necessario
-      )
-    
-    model_data$Model <- model_type
-    calibration_data_list[[model_type]] <- model_data
-  }
-  
-  # Combina i dati di calibrazione per tutti i modelli
-  calibration_data <- bind_rows(calibration_data_list)
-  
-  # Crea il plot della curva di calibrazione
-  calibration_plot <- ggplot(calibration_data, aes(x = mean_pred, y = obs_rate, color = Model)) +
-    geom_line(size = 1) +
-    geom_point(size = 2) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
-    scale_x_continuous("Probabilità Predetta", limits = c(0, 1), labels = percent) +
-    scale_y_continuous("Frequenza Osservata", limits = c(0, 1), labels = percent) +
-    labs(title = table_par) +
-    theme_minimal() +
-    theme(legend.title = element_blank())
-  
-  # Salva il plot come file PNG temporaneo
-  temp_plot_file <- tempfile(fileext = ".png")
-  ggsave(temp_plot_file, calibration_plot, width = 8, height = 6)
-  
-  # Crea un nuovo documento Word e aggiungi il plot
-  doc <- read_docx() %>%
-    body_add_par(table_par, style = "heading 1") %>%
-    body_add_img(src = temp_plot_file, width = 6, height = 6, style = "centered")
-  
-  # Salva il documento Word nel percorso specificato
-  print(doc, target = plot_name)
-  
-  # Elimina il file temporaneo
-  unlink(temp_plot_file)
-}
-
-calibration_curve_docx <- function(predictions, plot_name = "calibration_curves.docx", table_par = "") {
-
-  predictions$TrueLabel <- as.factor(predictions$TrueLabel)
-  
-  # Estrai i tipi di modello unici
-  model_types <- unique(predictions$Model)
-  model_types <- c("dt", "rf", "glm")
-  # Lista per memorizzare i dati di calibrazione per ogni modello
-  calibration_data_list <- list()
-  
-  # Loop attraverso ogni tipo di modello per calcolare i dati di calibrazione
-  for (model_type in model_types) {
-    # Filtra le previsioni per il modello corrente
-    model_data <- filter(predictions, Model == model_type)
-    
-    # Assicurati che PredictedProb sia numerico
-    model_data$PredictedProb <- as.numeric(model_data$PredictedProb)
-    
-    # Calcola i dati di calibrazione usando il binning
-    bins <- 10  # Numero di bin (puoi modificarlo)
-    model_data <- model_data %>%
-      mutate(
-        bin = ntile(PredictedProb, bins)
-      ) %>%
-      group_by(bin) %>%
-      summarise(
-        mean_pred = mean(PredictedProb),
-        obs_rate = mean(as.numeric(TrueLabel) - 1)  # Converti 'yes'/'no' in 1/0 se necessario
-      )
-    
-    model_data$Model <- model_type
-    calibration_data_list[[model_type]] <- model_data
-  }
-  
-  # Combina i dati di calibrazione per tutti i modelli
-  calibration_data <- bind_rows(calibration_data_list)
-  
-  # Crea il plot della curva di calibrazione
-  calibration_plot <- ggplot(calibration_data, aes(x = mean_pred, y = obs_rate, color = Model)) +
-    geom_line(size = 1) +
-    geom_point(size = 2) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
-    scale_x_continuous("Probabilità Predetta", limits = c(0, 1), labels = percent) +
-    scale_y_continuous("Frequenza Osservata", limits = c(0, 1), labels = percent) +
-    labs(title = table_par) +
-    theme_minimal() +
-    theme(legend.title = element_blank())
-  
-  # Salva il plot come file PNG temporaneo
-  temp_plot_file <- tempfile(fileext = ".png")
-  ggsave(temp_plot_file, calibration_plot, width = 8, height = 6)
-  
-  # Crea un nuovo documento Word e aggiungi il plot
-  doc <- read_docx() %>%
-    body_add_par(table_par, style = "heading 1") %>%
-    body_add_img(src = temp_plot_file, width = 6, height = 6, style = "centered")
-  
-  # Salva il documento Word nel percorso specificato
-  print(doc, target = plot_name)
-  
-  # Elimina il file temporaneo
-  unlink(temp_plot_file)
-}
 
 ############################################################################
-# regression_roc_curves_docx ##########################################################
+# roc_curve_docx ##########################################################
 ############################################################################
 #' Generate ROC Curve Plot and Export to Word Document
 #'
@@ -1347,7 +1208,7 @@ roc_curve_docx <- function(predictions, plot_name = "roc_curves.docx", table_par
   
   # Extract the unique model types from the predictions
   model_types <- unique(predictions$Model)
-  model_types <- c("dt", "rf", "glm")
+  #model_types <- c("dt", "rf", "glm")
   roc_data_list <- list()  # List to store ROC data for each model
   auc_values <- list()     # List to store AUC values for each model
   
@@ -1375,13 +1236,29 @@ roc_curve_docx <- function(predictions, plot_name = "roc_curves.docx", table_par
   # Combine ROC data for all models into a single data frame
   roc_data <- do.call(rbind, roc_data_list)
   
+  model_colors <- c(
+    "dt - CrossValidation" = "#87CEEB",   # Blu chiaro
+    "dt - ForwardSelection" = "#4682B4",  # Blu medio
+    "dt - BackwardSelection" = "#1E90FF", # Blu scuro
+    "dt - GeneticSelection" = "#0000FF",                # Blu
+    "rf - CrossValidation" = "#98FB98",   # Verde chiaro
+    "rf - ForwardSelection" = "#32CD32",  # Verde medio
+    "rf - BackwardSelection" = "#228B22", # Verde scuro
+    "rf - GeneticSelection" = "#006400",                # Verde
+    "glm - CrossValidation" = "#FF7F7F",  # Rosso chiaro
+    "glm - ForwardSelection" = "#FF4500", # Rosso medio
+    "glm - BackwardSelection" = "#B22222",# Rosso scuro
+    "glm - GeneticSelection" = "#8B0000"                # Rosso
+  )
+  
   # Create the ROC curve plot using ggplot2
   roc_plot <- ggplot(roc_data, aes(x = False_Positive_Rate, y = True_Positive_Rate, color = Model)) +
-    geom_line(size = 1) +
+    geom_line(size = 0.2) +
     geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey") +
     labs(title = table_par, x = "False positive rate", y = "True positive rate") +
     theme_minimal() +
-    theme(legend.title = element_blank())  # Remove legend title
+    theme(legend.title = element_blank())+  # Remove legend title
+    scale_color_manual(values = model_colors)
   
   # Create a data frame to display AUC values for each model
   auc_table <- data.frame(
@@ -1479,6 +1356,7 @@ calibration_curves_docx <- function(predictions, plot_name = "calibration_curves
   
   # Combine calibration data for all models into one data frame
   calib_data <- do.call(rbind, Map(cbind, calib_list, Model = models))
+  model_colors <- c("blue", "red", "green")
   
   # Create calibration plot using ggplot2
   calibration_plot <- ggplot(calib_data, aes(x = Predicted, y = Observed, color = Model)) +
@@ -1488,8 +1366,8 @@ calibration_curves_docx <- function(predictions, plot_name = "calibration_curves
     geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey") +  # 45-degree reference line
     labs(title = table_par, x = "Predicted risk", y = "Observed risk") +  # Labels for the plot
     theme_minimal() +  # Minimal theme for the plot
-    theme(legend.title = element_blank())  # Remove legend title
-  
+    theme(legend.title = element_blank()) +  # Remove legend title
+    scale_color_manual(values = model_colors) 
   # Create a Word document and add the calibration plot
   doc <- read_docx() %>%
     body_add_par(table_par, style = "heading 1") %>%
@@ -1531,28 +1409,32 @@ selected_features_table_docx <- function(dataset, features, plot_name = "", tabl
   }
   
   # Add columns indicating presence of each variable in the lists for DT, RF, and GLM models
-  results$DT <- sapply(results$Variable, check_presence, list = features$rpart)
-  results$RF <- sapply(results$Variable, check_presence, list = features$rf)
-  results$GLM <- sapply(results$Variable, check_presence, list = features$glm)
+  results$DT <- sapply(results$Variable, check_presence, list = features[[1]])
+  results$RF <- sapply(results$Variable, check_presence, list = features[[2]])
+  results$GLM <- sapply(results$Variable, check_presence, list = features[[3]])
   
   # Replace variable names with their labels and convert to a character vector
   results$Variable <- sapply(results$Variable, function(var) get_label_by_variable(dataset, var))
   results$Variable <- as.character(results$Variable)
   
   # Count the number of selected features for each model
-  dt_count <- length(features$rpart)
-  rf_count <- length(features$rf)
-  glm_count <- length(features$glm)
+  dt_count <- length(features[[1]])
+  rf_count <- length(features[[2]])
+  glm_count <- length(features[[3]])
   
   # Rename columns to include model name and the count of selected features
   colnames(results) <- c("Predictor", paste0("DT (", dt_count, ")"), 
                          paste0("RF (", rf_count, ")"), paste0("GLM (", glm_count, ")"))
   
+  dt_col <- colnames(results)[2]
+  rf_col <- colnames(results)[3]
+  glm_col <- colnames(results)[4]
+  
   # Create the flextable with specific formatting for each model's selected features
   table <- flextable(results) %>%
-    bg(i = ~ DT == "Present", j = 2, bg = "yellow") %>%  # Highlight present features for DT in yellow
-    bg(i = ~ RF == "Present", j = 3, bg = "red") %>%  # Highlight present features for RF in red
-    bg(i = ~ GLM == "Present", j = 4, bg = "blue") %>%  # Highlight present features for GLM in blue
+    bg(i = ~ get(dt_col) == "Present", j = 2, bg = "blue") %>%  # Highlight present features for DT in yellow
+    bg(i = ~ get(rf_col) == "Present", j = 3, bg = "green") %>%  # Highlight present features for RF in red
+    bg(i = ~ get(glm_col) == "Present", j = 4, bg = "red") %>%  # Highlight present features for GLM in blue
     hline_top(border = fp_border(color = "black", width = 1)) %>%  # Add top horizontal border
     hline(border = fp_border(color = "black", width = 1)) %>%  # Add horizontal lines between rows
     vline(border = fp_border(color = "black", width = 1)) %>%  # Add vertical lines between columns
@@ -1595,7 +1477,11 @@ selected_features_table_docx <- function(dataset, features, plot_name = "", tabl
 #' # Example usage:
 #' scatter_and_residuals_docx("model_plots.docx", "Scatter Plot: Observed vs. Predicted", "Residuals Distribution")
 scatter_and_residuals_docx <- function(predictions, plot_name, first_title, second_title) {
-  # Create scatter plot of observed vs. predicted values
+  
+  model_types <- unique(predictions$Model)
+  model_colors <- c("blue", "red", "green")
+  
+  #Create scatter plot of observed vs. predicted values
   scatter_plot <- ggplot(predictions, aes(x = TrueLabel, y = PredictedValues, color = Model)) +
     geom_point(alpha = 0.6) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
@@ -1603,7 +1489,9 @@ scatter_and_residuals_docx <- function(predictions, plot_name, first_title, seco
     theme_minimal() +
     labs(title = first_title,
          x = "Observed Values",
-         y = "Predicted Values")
+         y = "Predicted Values")+  
+    scale_color_manual(values = model_colors)
+  
   
   # Calculate residuals
   predictions <- predictions %>%
@@ -1616,7 +1504,8 @@ scatter_and_residuals_docx <- function(predictions, plot_name, first_title, seco
     theme_minimal() +
     labs(title = second_title,
          x = "Residuals",
-         y = "Frequencies")
+         y = "Frequencies")+  
+    scale_fill_manual(values = model_colors)
   
   # Create a new Word document and add the scatter plot and histogram plot
   doc <- read_docx()
@@ -1634,7 +1523,7 @@ regression_roc_curve_docx <- function(predictions, plot_name = "roc_curves.docx"
   
   # Extract the unique model types from the predictions
   model_types <- unique(predictions$Model)
-  
+  model_colors <- c("blue", "red", "green")
   roc_data_list <- list()  # List to store ROC data for each model
   auc_values <- list()     # List to store AUC values for each model
   
@@ -1668,7 +1557,8 @@ regression_roc_curve_docx <- function(predictions, plot_name = "roc_curves.docx"
     geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey") +
     labs(title = table_par, x = "False positive rate", y = "True positive rate") +
     theme_minimal() +
-    theme(legend.title = element_blank())  # Remove legend title
+    theme(legend.title = element_blank())+  # Remove legend title
+    scale_color_manual(values = model_colors)
   
   # Create a data frame to display AUC values for each model
   auc_table <- data.frame(
@@ -1687,5 +1577,66 @@ regression_roc_curve_docx <- function(predictions, plot_name = "roc_curves.docx"
     body_add_table(auc_table, style = "table_template")
   
   # Save the Word document to the specified path
+  print(doc, target = plot_name)
+}
+
+score_calibration_data <- function(pred, obs, bins = 10) {
+  # Calcola i quantili per il binning dei valori predetti continui
+  quantiles <- unique(quantile(pred, probs = seq(0, 1, 1 / bins)))
+  
+  # Assicura che ci siano abbastanza bin, riduci se necessario
+  while (length(quantiles) <= 1) {
+    bins <- bins - 1
+    quantiles <- unique(quantile(pred, probs = seq(0, 1, 1 / bins)))
+    if (bins == 1) break
+  }
+  
+  # Assegna ogni predizione a un bin
+  cuts <- cut(pred, breaks = quantiles, include.lowest = TRUE)
+  
+  # Calcola il valore osservato medio e predetto per ogni bin
+  obs_mean <- tapply(obs, cuts, mean)
+  pred_mean <- tapply(pred, cuts, mean)
+  
+  # Calcola l'errore standard per i valori osservati
+  obs_se <- tapply(obs, cuts, function(x) sd(x) / sqrt(length(x)))
+  
+  # Ritorna un data frame con i valori predetti e osservati medi e l'errore standard
+  data.frame(Predicted = pred_mean, Observed = obs_mean, SE = obs_se)
+}
+
+# Funzione modificata per generare curve di calibrazione per valori continui
+score_calibration_curves_docx <- function(predictions, plot_name = "calibration_curves.docx", table_par) {
+  
+  # Estrae i modelli unici
+  models <- unique(predictions$Model)
+  
+  # Genera i dati di calibrazione per ciascun modello
+  calib_list <- lapply(models, function(model) {
+    model_data <- filter(predictions, Model == model)
+    score_calibration_data(model_data$PredictedValues, model_data$TrueLabel)
+  })
+  
+  # Combina i dati di calibrazione di tutti i modelli
+  calib_data <- do.call(rbind, Map(cbind, calib_list, Model = models))
+  model_colors <- c("blue", "red", "green")
+  
+  # Crea il grafico di calibrazione
+  calibration_plot <- ggplot(calib_data, aes(x = Predicted, y = Observed, color = Model)) +
+    geom_point(position = position_dodge(width = 0.05), size = 2) +  
+    geom_errorbar(aes(ymin = Observed - SE, ymax = Observed + SE), width = 0.02, position = position_dodge(width = 0.05)) +  
+    geom_smooth(method = "loess", se = FALSE) +  
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey") +  
+    labs(title = table_par, x = "Predicted values", y = "Observed values") +  
+    theme_minimal() +  
+    theme(legend.title = element_blank()) +  
+    scale_color_manual(values = model_colors) 
+  
+  # Crea un documento Word e aggiungi il grafico di calibrazione
+  doc <- read_docx() %>%
+    body_add_par(table_par, style = "heading 1") %>%
+    body_add_gg(value = calibration_plot, style = "centered")  
+  
+  # Salva il documento Word
   print(doc, target = plot_name)
 }

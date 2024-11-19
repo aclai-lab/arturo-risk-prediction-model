@@ -129,9 +129,9 @@ genetic_feature_selection <- function(dataset, model_types = c("rpart", "rf", "g
       test_index <- folds[[fold_idx]]
       
       ga_model <- ga(type = "binary",
-                      fitness = function(selected_features) {
-                                res <- fitness_function(selected_features, dataset, train_index, test_index, model_type, fold_idx)
-                                return(res$accuracy) # Fitness è basata solo sull'accuratezza
+                     fitness = function(selected_features) {
+                       res <- fitness_function(selected_features, dataset, train_index, test_index, model_type, fold_idx)
+                       return(res$accuracy) # Fitness è basata solo sull'accuratezza
                      },
                      nBits = length(all_features),
                      maxiter = n_generations,
@@ -141,8 +141,6 @@ genetic_feature_selection <- function(dataset, model_types = c("rpart", "rf", "g
                      keepBest = TRUE)
       
       best_solution <- ga_model@solution[1, ]
-      selected_features <- all_features[which(best_solution == 1)]
-      res <- fitness_function(best_solution, dataset, train_index, test_index, model_type, fold_idx)
       accuracy <- res$accuracy
       sensitivity <- res$sensitivity
       specificity <- res$specificity
@@ -164,7 +162,7 @@ genetic_feature_selection <- function(dataset, model_types = c("rpart", "rf", "g
       )
       all_predictions <- rbind(all_predictions, fold_predictions)
       
-     if (accuracy > best_fold_accuracy) {
+      if (accuracy > best_fold_accuracy) {
         best_fold_accuracy <- accuracy
         best_fold_features <- selected_features
       }
@@ -411,9 +409,9 @@ genetic_feature_selection_bl <- function(dataset, model_types = c("rpart", "rf",
         best_solution <- ga_model@solution[1, ]
         selected_features <- all_features[which(best_solution == 1)]
         if(balance == "over")
-          res <- fitness_function_bl_over(best_solution, dataset, train_index, test_index, model_type, fold_idx)
+          res <- fitness_function_bl_over(selected_features, dataset, train_index, test_index, model_type, fold_idx)
         else
-          res <- fitness_function_bl_under(best_solution, dataset, train_index, test_index, model_type, fold_idx)
+          res <- fitness_function_bl_under(selected_features, dataset, train_index, test_index, model_type, fold_idx)
         accuracy <- res$accuracy
         sensitivity <- res$sensitivity
         specificity <- res$specificity
@@ -486,7 +484,8 @@ score_fitness_function <- function(selected_features, dataset, train_index, test
   
   model <- score_train_model(model_type, train_data) # Modifica per includere modelli di regressione
   predictions <- score_make_predictions(model, test_data, model_type)
-  
+  predicted_prob <- (predictions - min(predictions)) / (12 - 0)  # Map from [0,12] to [0,1]
+
   # Calcolo delle metriche per la regressione
   observed_values <- test_data$euro_d
   MSE <- mean((predictions - observed_values)^2)
@@ -494,8 +493,9 @@ score_fitness_function <- function(selected_features, dataset, train_index, test
   R2 <- 1 - sum((predictions - observed_values)^2) / sum((observed_values - mean(observed_values))^2)
   
   return(list(MSE = MSE, MAE = MAE, R2 = R2, selected_features = selected_features, 
-              true_label = observed_values, predicted_values = predictions))
+              true_label = observed_values, predicted_values = predictions, predicted_probs = predicted_prob))
 }
+
 
 score_genetic_feature_selection <- function(dataset, model_types = c("rpart", "rf", "glm"), n_generations = 50, pop_size = 50) {
   
@@ -506,6 +506,8 @@ score_genetic_feature_selection <- function(dataset, model_types = c("rpart", "r
   ga_summaries <- list()
   all_predictions <- data.frame()
   folds <- createFolds(dataset$euro_d, k = 10) # Creazione dei fold per la cross-validation
+  thresholds_results <- data.frame()
+  thresholds <- seq(0.05, 0.95, by = 0.05)
   
   for (model_type in model_types) {
     
@@ -551,6 +553,11 @@ score_genetic_feature_selection <- function(dataset, model_types = c("rpart", "r
       )
       all_predictions <- rbind(all_predictions, fold_predictions)
       
+      for (threshold in thresholds) {
+        metrics <- score_calculate_metrics(threshold, res$predicted_prob, res$true_label)
+        thresholds_results <- rbind(thresholds_results, data.frame(Model = model_type, Threshold = threshold, t(metrics)))
+      }
+      
       if (MSE < best_fold_MSE) {
         best_fold_MSE <- MSE
         best_fold_features <- selected_features
@@ -576,6 +583,8 @@ score_genetic_feature_selection <- function(dataset, model_types = c("rpart", "r
     best_MSE = best_overall_MSE,
     results = results,
     ga_summaries = ga_summaries,
-    all_pred_ga = all_predictions
+    all_pred_ga = all_predictions,
+    thresholds_results = thresholds_results
   ))
 }
+

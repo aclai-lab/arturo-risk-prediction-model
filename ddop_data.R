@@ -410,12 +410,17 @@ process_wave <- function(data, ids, initial = FALSE) {
           num_ones >= 4 & num_anomalous_values < 4 ~ "yes",  # Set to "yes" if conditions are met
           num_ones < 4 & num_anomalous_values < 4 ~ "no",    # Set to "no" if conditions are met
           TRUE ~ NA_character_  # Set to NA in all other cases
-        ),
-        # Label 'initial_euro_d' as "depressed" or "not depressed"
-        initial_euro_d = labelled(initial_euro_d, labels = c("depressed" = "yes", "not depressed" = "no"), label = "depression"),
-        initial_euro_d <- labelled::set_variable_labels(dataset$initial_euro_d, label = "Depression at BaseLine")
-      ) %>%
-      select(-num_anomalous_values, -num_ones)  # Remove auxiliary columns
+        ))%>%
+          mutate(
+            initial_euro_d = labelled(
+              initial_euro_d,
+              labels = c("depressed" = "yes", "not depressed" = "no"),
+              label = "Depression Status"
+            )
+          ) %>%
+          select(-num_anomalous_values, -num_ones)
+        
+        var_label(filtered_data$initial_euro_d) <- "Depression at BaseLine"
   } else {
     filtered_data <- filtered_data %>%
       select(mergeid, starts_with("euro"), num_anomalous_values, num_ones) %>%
@@ -662,10 +667,9 @@ load_death_dataset <- function(
     # Determine which data_names to use for the current wave
     if (wave == 8) {
       current_data_names <- c("gv_health", "ph")
-    } else if(wave == 4){
+    }else if(wave == 4){
       current_data_names <- c("ph")
-    }
-    else{
+    }else{
       current_data_names <- data_names
     } 
     
