@@ -34,7 +34,7 @@ find_variable_by_label <- function(data, label) {
 }
 
 ##################################################################
-# find_label_by_variable #########################################
+# get_label_by_variable #########################################
 ##################################################################
 #' Get variable label by variable code
 #'
@@ -668,7 +668,7 @@ update_depression_var <- function(dataset) {
 score_train_model <- function(model_type, train_data) {
   # Train the model based on the specified model type
   model <- switch(model_type,
-                  rpart = rpart(euro_d ~ ., data = train_data, method = "anova"),  # Regression tree with rpart
+                  rpart = rpart(euro_d ~ ., data = train_data, method = "anova", control = rpart.control(minsplit = 5, minbucket = 5, xval=0)),   # Regression tree with rpart
                   rf = randomForest(euro_d ~ ., data = train_data),                # Random forest regression
                   glm = glm(euro_d ~ ., family = gaussian(), data = train_data),   # Linear regression with glm
                   stop("Model type not supported for regression"))  # Error handling for unsupported model types
@@ -851,33 +851,6 @@ calculate_metrics <- function(threshold, predictions, actuals) {
            Accuracy = accuracy))
 }
 
-score_calculate_metrics <- function(threshold, predictions, actuals) {
-
-  actuals = ifelse(actuals >= 4, "yes", "no")
-  binary_predictions <- ifelse(predictions > threshold, "yes", "no")
-  
-  # Calculate the confusion matrix
-  cm <- confusionMatrix(factor(binary_predictions, levels = c("no", "yes")),
-                        factor(actuals, levels = c("no", "yes")))
-      
-  # Calculate the percentage of the population with predictions below the threshold
-  population_below_threshold <- mean(predictions <= threshold) * 100
-
-  # Extract the relevant metrics from the confusion matrix
-  sensitivity <- cm$byClass["Sensitivity"]
-  specificity <- cm$byClass["Specificity"]
-  ppv <- cm$byClass["Pos Pred Value"]
-  npv <- cm$byClass["Neg Pred Value"]
-  accuracy <- cm$overall["Accuracy"]
-
-  # Return the calculated metrics as a named vector
-  return(c(Population_below_threshold = population_below_threshold,
-           Sensitivity = sensitivity,
-           Specificity = specificity,
-           PPV = ppv,
-           NPV = npv,
-           Accuracy = accuracy))
-}
 
 ##################################################################
 # balancing_dataset ##############################################
@@ -1055,4 +1028,3 @@ print_score_summary_results <- function(predictions) {
   # Print the summarized statistics
   print(summary_stats_df)
 }
-

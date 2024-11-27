@@ -23,7 +23,8 @@ rpm <- function(){
   ############################################################################
   # FOR UNBALANCED DATASET ###################################################
   ############################################################################
- 
+  
+  #cv
   results_cv <- cv(dataset)
   print_summary_results(results_cv$results)
   calibration_curves_docx(results_cv$all_predictions, 
@@ -33,6 +34,7 @@ rpm <- function(){
                   "risk_analysis_cv_no_balance.docx", 
                   "with Cross Validation on unbalanced dataset")
   
+  # with forward selection
   results_fwfs <- random_forward_selection(dataset)
   print_summary_results(results_fwfs$results)
   calibration_curves_docx(results_fwfs$all_predictions,
@@ -45,6 +47,7 @@ rpm <- function(){
                   "risk_analysis_fwfs_no_balance.docx", 
                   "with Forward Selection on unbalanced dataset")
   
+  # with backward selection
   results_bwfs <- random_backward_selection(dataset)
   print_summary_results(results_bwfs$results)
   calibration_curves_docx(results_bwfs$all_predictions, 
@@ -57,6 +60,7 @@ rpm <- function(){
                   "risk_analysis_bwfs_no_balance.docx", 
                   "with Backward Selection on unbalanced dataset")
   
+  # with genetic selection
   results_ga <- genetic_feature_selection(dataset)
   print_summary_results(results_ga$results)
   calibration_curves_docx(results_ga$all_predictions, 
@@ -75,6 +79,7 @@ rpm <- function(){
   # FOR UNDERSAMPLING DATASET ################################################
   ############################################################################
   
+  # cv
   results_cv_under <- double_cv(dataset, balance = "under")
   print_summary_results(results_cv_under$results)
   calibration_curves_docx(results_cv_under$all_predictions, 
@@ -84,6 +89,7 @@ rpm <- function(){
                   "risk_analysis_cv_balance_under.docx", 
                   "with Cross Validation on undersampling balanced dataset")
   
+  # with forward selection
   results_fwfs_bl_under <- random_forward_selection_bl(dataset, balance = "under")
   print_summary_results(results_fwfs_bl_under$results)
   calibration_curves_docx(results_fwfs_bl_under$all_predictions, 
@@ -96,6 +102,7 @@ rpm <- function(){
                   "risk_analysis_fwfs_balance_under.docx",
                   "with Forward Selection on undersampling balanced dataset")
   
+  # with backward selection
   results_bwfs_bl_under<- random_backward_selection_bl(dataset, balance = "under")
   print_summary_results(results_bwfs_bl_under$results)
   calibration_curves_docx(results_bwfs_bl_under$all_predictions, 
@@ -108,6 +115,7 @@ rpm <- function(){
                   "risk_analysis_bwfs_balance_under.docx", 
                   "with Backward Selection on undersampling balanced dataset")
   
+  # with genetic selection
   results_ga_bl_under <- genetic_feature_selection_bl(dataset, balance = "under") 
   print_summary_results(results_ga_bl_under$results)
   calibration_curves_docx(results_ga_bl_under$all_predictions, 
@@ -126,6 +134,7 @@ rpm <- function(){
   # FOR OVERSAMPLING DATASET #################################################
   ############################################################################
   
+  # cv
   results_cv_over <- double_cv(dataset, balance = "over")
   print_summary_results(results_cv_over$results)
   calibration_curves_docx(results_cv_over$all_predictions, 
@@ -135,6 +144,7 @@ rpm <- function(){
                   "risk_analysis_cv_balance_over.docx", 
                   "with Cross Validation on oversampling balanced dataset")
   
+  # with forward selection
   results_fwfs_bl_over <- random_forward_selection_bl(dataset, balance = "over")
   print_summary_results(results_fwfs_bl_over$results)
   calibration_curves_docx(results_fwfs_bl_over$all_predictions, 
@@ -147,6 +157,7 @@ rpm <- function(){
                   "risk_analysis_fwfs_balance_over.docx", 
                   "with Forward Selection on oversampling balanced dataset")
   
+  # with backward selection
   results_bwfs_bl_over <- random_backward_selection_bl(dataset, balance = "over")
   print_summary_results(results_bwfs_bl_over$results)
   calibration_curves_docx(results_bwfs_bl_over$all_predictions, 
@@ -159,6 +170,7 @@ rpm <- function(){
                   "risk_analysis_bwfs_balance_over.docx", 
                   "with Bacward Selection on oversampling balanced dataset")
   
+  # with genetic selection
   results_ga_bl_over <- genetic_feature_selection_bl(dataset, balance = "over") 
   print_summary_results(results_ga_bl_over$results)
   calibration_curves_docx(results_ga_bl_over$all_predictions, 
@@ -172,12 +184,6 @@ rpm <- function(){
                   "with Genetic Selection on oversampling balanced dataset")
   
   roc_curves_docx(list(results_cv_over$all_predictions, results_fwfs_bl_over$all_predictions, results_bwfs_bl_over$all_predictions, results_ga_bl_over$all_predictions), "roc_curves_balance_oversampling.docx", "ROC Curves for oversampling balanced dataset")
-  ############################################################################
-  # REGRESSION FROM GA #######################################################
-  ############################################################################
-  dataset <- read_sav("data/score_dataset.sav")
-  dataset <- select(-c(results_ga_bl_under$selected_feature))
-  results_cv_score_ga <- score_cross_validation(dataset)
   
   ############################################################################
   # REGRESSION ###############################################################
@@ -185,6 +191,7 @@ rpm <- function(){
   
   dataset <- read_sav("data/score_dataset.sav")
   
+  #cv
   results_cv_score <- score_cross_validation(dataset)
   print_summary_results(results_cv_score$results)
   print_score_summary_results(results_cv_score$predictions)
@@ -196,6 +203,8 @@ rpm <- function(){
   regression_roc_curve_docx(all_predictions,
                   "roc_curves_cv_regression.docx", 
                   "ROC Curves for Linear Regression with Cross Validation")
+  
+  #with genetic selection
   results_ga_score <- score_genetic_feature_selection(dataset)
   print_summary_results(results_ga_score$results)
   print_score_summary_results(results_ga_score$predictions)

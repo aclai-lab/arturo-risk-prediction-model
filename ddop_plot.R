@@ -692,60 +692,65 @@ make_variancy_barplot_docx <- function(
     var_euro,
     path, 
     width = 7, 
-    height = 5
+    height = 3
 ){
   
   # Continuous variables: Compute variance and create barplot
-  ds <- dataset %>% select(all_of(var_continue))
-  variancy_ds <- sapply(ds, function(x) if(is.numeric(x)) var(x, na.rm = TRUE) else NA)
-  var_names <- c()
+  ds <- dataset %>% select(all_of(intersect(var_continue, colnames(dataset))))
+  # Calcola la varianza per le variabili continue
+  variancy_ds <- sapply(ds, function(x) if (is.numeric(x)) sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE) * 100 else NA)
   
-  # Loop through each variable name in variancy_ds
-  for (var in names(variancy_ds)) {
-    # Call the function get_label_by_variable and store the result in var_name
-    var_name <- get_label_by_variable(dataset, var)
-    
-    # Append the result to the vector
-    var_names <- c(var_names, var_name)
-  }
-  
+  # Filtra le variabili valide (con varianza calcolata)
   variancy_ds <- data.frame(
-    variable = var_names,
+    variable = names(variancy_ds),
     value = variancy_ds
-  ) %>% na.omit(variancy_ds)
+  ) %>% na.omit()
   
-  # Sort variables by variance in descending order
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable)
+  # Ottieni i nomi leggibili delle variabili
+  var_names <- sapply(variancy_ds$variable, function(var) {
+    get_label_by_variable(dataset, var)
+  })
+  
+  # Sostituisci i nomi se necessario (opzionale)
   var_names_replace <- c("Age", "Children", "Grandchildren", "Teeth missing", "Weight loss (kg)", "BMI")
-  variancy_ds$variable <- var_names_replace[variancy_ds$variable]
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable[order(variancy_ds$value, decreasing = TRUE)])
-  # Create barplot for continuous variables
-  p1 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
-    geom_bar(stat = "identity", fill = "blue") +  # Set bars to blue
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(x = "", y = "Variances")
-  
-  # Ordinal variables: Compute variance and create barplot
-  ds <- dataset %>% select(all_of(var_ord))
-  variancy_ds <- sapply(ds, function(x) if(is.numeric(x)) var(x, na.rm = TRUE) else NA)
-  
-  var_names <- c()
-  
-  # Loop through each variable name in variancy_ds
-  for (var in names(variancy_ds)) {
-    # Call the function get_label_by_variable and store the result in var_name
-    var_name <- get_label_by_variable(dataset, var)
-    
-    # Append the result to the vector
-    var_names <- c(var_names, var_name)
+  if (length(var_names) == length(var_names_replace)) {
+    var_names <- var_names_replace
   }
   
-  variancy_ds <- data.frame(
-    variable = var_names,
-    value = variancy_ds
-  ) %>% na.omit(variancy_ds)
+  # Aggiorna i nomi delle variabili nel dataset
+  variancy_ds$variable <- factor(var_names, levels = var_names[order(variancy_ds$value, decreasing = TRUE)])
   
-
+  # Crea il barplot
+  p1 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
+    geom_bar(stat = "identity", fill = "blue") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = "", y = "Variability", title = "Continuous Variables")
+  
+  ds <- dataset %>% select(all_of(intersect(var_ord, colnames(dataset))))
+  
+  # Calcola la variabilità usando l'IQR per le variabili ordinali
+  variancy_ds <- sapply(ds, function(x) {
+    data_num <- as.numeric(x)
+    MAD <- mean(abs(data_num - mean(data_num, na.rm = TRUE)), na.rm = TRUE)
+    MAD_max <- (max(data_num, na.rm = TRUE) - min(data_num, na.rm = TRUE)) / 2
+    if (MAD_max != 0) {
+      MAD / MAD_max * 100
+    } else {
+      NA  # Variabili non numeriche sono escluse
+    }
+  })
+  
+  # Filtra i risultati non NA e crea un data frame
+  variancy_ds <- data.frame(
+    variable = names(variancy_ds),
+    value = variancy_ds
+  ) %>% na.omit()
+  
+  # Ottieni i nomi leggibili delle variabili
+  var_names <- sapply(variancy_ds$variable, function(var) {
+    get_label_by_variable(dataset, var)
+  })
+  
   var_names_replace <- c(
     "Born citizen",
     "Part of area",
@@ -777,43 +782,51 @@ make_variancy_barplot_docx <- function(
     "Health insurance satisfaction",
     "Vigorous activities",
     "Moderate activities",
-    "Baseline depression",
     "2+ years with cancer",
     "Condition duration",
     "Cancer duration"
   )
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable)
-  variancy_ds$variable <- var_names_replace[variancy_ds$variable]
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable[order(variancy_ds$value, decreasing = TRUE)])
-  # Create barplot for ordinal variables
+  
+  if (length(var_names) == length(var_names_replace)) {
+    var_names <- var_names_replace
+  }
+  
+  # Ordina le variabili in base alla variabilità
+  variancy_ds$variable <- factor(var_names, levels = var_names[order(variancy_ds$value, decreasing = TRUE)])
+  
+  # Crea il barplot per le variabili ordinali
   p2 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
-    geom_bar(stat = "identity", fill = "blue") +  # Set bars to blue
+    geom_bar(stat = "identity", fill = "blue") +  # Colore delle barre blu
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(x = "", y = "Variances") +
-    theme(plot.margin = unit(c(1, 1, 1, 2), "cm"))  # Add more space to the left
+    labs(x = "", y = "Variability", title = "Ordinal Variables") +
+    theme(plot.margin = unit(c(1, 1, 1, 2), "cm"))  # Aggiungi margini al grafico
   
   # Non-ordinal variables: Compute variance and create barplot
   ds <- dataset %>% select(all_of(var_not_ord))
-  variancy_ds <- sapply(ds, function(x) if(is.numeric(x)) var(x, na.rm = TRUE) else NA)
-  var_names <- c()
+  variancy_ds <- sapply(ds, function(x) {
+    freq_table <- table(x)
+    prop_table <- prop.table(freq_table)
+    k <- length(freq_table)
+    if (k > 1) {
+      entropy(prop_table, unit = "log2") / log2(k) * 100
+    } 
+  })
   
-  # Loop through each variable name in variancy_ds
-  for (var in names(variancy_ds)) {
-    # Call the function get_label_by_variable and store the result in var_name
-    var_name <- get_label_by_variable(dataset, var)
-    
-    # Append the result to the vector
-    var_names <- c(var_names, var_name)
-  }
-
-  
+  # Crea un data frame con i risultati
   variancy_ds <- data.frame(
-    variable = var_names,
+    variable = names(variancy_ds),
     value = variancy_ds
-  ) %>% na.omit(variancy_ds)
+  ) %>% na.omit()
   
-  # Sort variables by variance in descending order
-
+  # Ottieni i nomi leggibili delle variabili (se disponibile)
+  var_names <- sapply(variancy_ds$variable, function(var) {
+    if (exists("get_label_by_variable")) {
+      get_label_by_variable(dataset, var)  # Usa la funzione se esiste
+    } else {
+      var  # Altrimenti usa il nome originale
+    }
+  })
+  
   var_names_replace <- c(
     "Gender",
     "Marital status",
@@ -854,44 +867,59 @@ make_variancy_barplot_docx <- function(
     "Pain location",
     "Glasses/lenses type"
   )
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable)
-  variancy_ds$variable <- var_names_replace[variancy_ds$variable]
-  
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable[order(variancy_ds$value, decreasing = TRUE)])
-  # Create barplot for non-ordinal variables
-  p3 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
-    geom_bar(stat = "identity", fill = "blue") +  # Set bars to blue
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(x = "", y = "Variances")
-  # Euro variables: Compute variance and create barplot
-  ds <- dataset %>% select(all_of(var_euro))
-  variancy_ds <- sapply(ds, function(x) if(is.numeric(x)) var(x, na.rm = TRUE) else NA)
-  var_names <- c()
-  
-  # Loop through each variable name in variancy_ds
-  for (var in names(variancy_ds)) {
-    # Call the function get_label_by_variable and store the result in var_name
-    var_name <- get_label_by_variable(dataset, var)
-    
-    # Append the result to the vector
-    var_names <- c(var_names, var_name)
+  if (length(var_names) == length(var_names_replace)) {
+    var_names <- var_names_replace
   }
   
-  variancy_ds <- data.frame(
-    variable = var_names,
-    value = variancy_ds
-  ) %>% na.omit(variancy_ds)
+  # Ordina le variabili in base all'entropia
+  variancy_ds$variable <- factor(var_names, levels = var_names[order(variancy_ds$value, decreasing = TRUE)])
   
-  # Sort variables by variance in descending order
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable)
-   var_names <- gsub("\\s*\\(.*\\)", "", var_names)
-  variancy_ds$variable <- var_names_replace[variancy_ds$variable]
-  variancy_ds$variable <- factor(variancy_ds$variable, levels = variancy_ds$variable[order(variancy_ds$value, decreasing = TRUE)])
-  # Create barplot for euro variables
-  p4 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
-    geom_bar(stat = "identity", fill = "blue") +  # Set bars to blue
+  # Crea il barplot
+  p3 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
+    geom_bar(stat = "identity", fill = "blue") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(x = "", y = "Variances")
+    labs(x = "", y = "Variability", title = "Non-Ordinal Variables")
+   
+  
+  # Euro variables: Compute variance and create barplot
+  ds <- dataset %>% select(all_of(var_euro))
+ 
+  variancy_ds <- sapply(ds, function(x) {
+    freq_table <- table(x)
+    prop_table <- prop.table(freq_table)
+    k <- length(freq_table)
+    if (k > 1) {
+      entropy(prop_table, unit = "log2") / log2(k) * 100
+    } 
+  })
+  
+  # Crea un data frame con i risultati
+  variancy_ds <- data.frame(
+    variable = names(variancy_ds),
+    value = variancy_ds
+  ) %>% na.omit()
+  
+  # Ottieni i nomi leggibili delle variabili (se disponibile)
+  var_names <- sapply(variancy_ds$variable, function(var) {
+    if (exists("get_label_by_variable")) {
+      get_label_by_variable(dataset, var)  # Usa la funzione se esiste
+    } else {
+      var  # Altrimenti usa il nome originale
+    }
+  })
+  
+  # Rimuovi eventuali testo tra parentesi (opzionale)
+  var_names <- gsub("\\s*\\(.*\\)", "", var_names)
+  
+  # Ordina le variabili in base alla variabilità (entropia)
+  variancy_ds$variable <- factor(var_names, levels = var_names[order(variancy_ds$value, decreasing = TRUE)])
+  
+  # Crea il barplot
+  p4 <- ggplot(variancy_ds, aes(x = variable, y = value)) +
+    geom_bar(stat = "identity", fill = "blue") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = "", y = "Variability", title = "Euro Variables")
+  
   # Create a new Word document
   doc <- read_docx()
   
@@ -1237,18 +1265,18 @@ roc_curve_docx <- function(predictions, plot_name = "roc_curves.docx", table_par
   roc_data <- do.call(rbind, roc_data_list)
   
   model_colors <- c(
-    "dt - CrossValidation" = "#87CEEB",   # Blu chiaro
-    "dt - ForwardSelection" = "#4682B4",  # Blu medio
-    "dt - BackwardSelection" = "#1E90FF", # Blu scuro
-    "dt - GeneticSelection" = "#0000FF",                # Blu
-    "rf - CrossValidation" = "#98FB98",   # Verde chiaro
-    "rf - ForwardSelection" = "#32CD32",  # Verde medio
-    "rf - BackwardSelection" = "#228B22", # Verde scuro
-    "rf - GeneticSelection" = "#006400",                # Verde
-    "glm - CrossValidation" = "#FF7F7F",  # Rosso chiaro
-    "glm - ForwardSelection" = "#FF4500", # Rosso medio
-    "glm - BackwardSelection" = "#B22222",# Rosso scuro
-    "glm - GeneticSelection" = "#8B0000"                # Rosso
+    "#87CEEB",   # Blu chiaro
+    "#98FB98",   # Verde chiaro
+    "#FF7F7F",  # Rosso chiaro
+    "#4682B4",  # Blu medio
+    "#32CD32",  # Verde medio
+    "#FF4500", # Rosso medio
+    "#1E90FF", # Blu scuro
+    "#228B22", # Verde scuro
+    "#B22222",# Rosso scuro
+    "#0000FF",                # Blu
+    "#006400",                # Verde
+    "#8B0000"                # Rosso
   )
   
   # Create the ROC curve plot using ggplot2
