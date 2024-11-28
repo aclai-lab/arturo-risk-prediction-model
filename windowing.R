@@ -91,7 +91,7 @@ for (dep in 2:12) {
             selected_features <- all_features[which(best_solution == 1)]  # Get selected features
             
             # Evaluate the solution
-            res <- fitness_function_bl_under(selected_features, dataset, train_index, test_index, model_type, fold_idx)
+            res <- fitness_function_bl_under(best_solution, data, train_index, test_index, model_type, fold_idx)
             accuracy <- res$accuracy
             sensitivity <- res$sensitivity
             specificity <- res$specificity
